@@ -16,7 +16,7 @@ from huggingface_hub import hf_hub_download
 from model.ecg_cnn_1lead   import ECGCNN1Lead
 from model.ecg_cnn_12lead  import ECGCNN12Lead
 
-HF_REPO_ID = "Abdullah1607/ECG-MI-Detection"
+HF_REPO_ID = "Abdullah9786/ECG-MI-Detection"
 
 
 def ensure_model(filename, local_path):
