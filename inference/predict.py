@@ -60,7 +60,10 @@ def get_model_1lead():
     if _model_1lead is None:
         ensure_model("ecg_cnn_1lead.pth", MODEL_PATH_1LEAD)
         m = ECGCNN1Lead().to(DEVICE)
-        m.load_state_dict(torch.load(MODEL_PATH_1LEAD, map_location=DEVICE, weights_only=True))
+        try:
+            m.load_state_dict(torch.load(MODEL_PATH_1LEAD, map_location=DEVICE, weights_only=True))
+        except Exception:
+            m.load_state_dict(torch.load(MODEL_PATH_1LEAD, map_location=DEVICE, weights_only=False))
         m.eval()
         _model_1lead = m
     return _model_1lead
@@ -71,7 +74,10 @@ def get_model_12lead():
     if _model_12lead is None:
         ensure_model("ecg_cnn_12lead.pth", MODEL_PATH_12LEAD)
         m = ECGCNN12Lead().to(DEVICE)
-        m.load_state_dict(torch.load(MODEL_PATH_12LEAD, map_location=DEVICE, weights_only=True))
+        try:
+            m.load_state_dict(torch.load(MODEL_PATH_12LEAD, map_location=DEVICE, weights_only=True))
+        except Exception:
+            m.load_state_dict(torch.load(MODEL_PATH_12LEAD, map_location=DEVICE, weights_only=False))
         m.eval()
         _model_12lead = m
     return _model_12lead
@@ -82,7 +88,10 @@ def get_model_image():
     if _model_image is None:
         ensure_model("ecg_cnn_image.pth", MODEL_PATH_IMAGE)
         m = ECGCNN1Lead().to(DEVICE)
-        m.load_state_dict(torch.load(MODEL_PATH_IMAGE, map_location=DEVICE, weights_only=True))
+        try:
+            m.load_state_dict(torch.load(MODEL_PATH_IMAGE, map_location=DEVICE, weights_only=True))
+        except Exception:
+            m.load_state_dict(torch.load(MODEL_PATH_IMAGE, map_location=DEVICE, weights_only=False))
         m.eval()
         _model_image = m
     return _model_image
