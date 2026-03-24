@@ -14,7 +14,6 @@ import numpy as np
 from huggingface_hub import hf_hub_download
 
 from model.ecg_cnn_1lead   import ECGCNN1Lead
-from model.ecg_cnn_500hz   import ECGCNN500Hz
 from model.ecg_cnn_12lead  import ECGCNN12Lead
 
 HF_REPO_ID = "Abdullah1607/ECG-MI-Detection"
@@ -82,7 +81,7 @@ def get_model_image():
     global _model_image
     if _model_image is None:
         ensure_model("ecg_cnn_image.pth", MODEL_PATH_IMAGE)
-        m = ECGCNN500Hz().to(DEVICE)
+        m = ECGCNN1Lead().to(DEVICE)
         m.load_state_dict(torch.load(MODEL_PATH_IMAGE, map_location=DEVICE, weights_only=True))
         m.eval()
         _model_image = m
