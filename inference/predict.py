@@ -7,13 +7,31 @@ Thresholds are placeholders; update after running:
     venv/Scripts/python -m evaluation.find_threshold_image
 """
 
+import os
 import torch
 import torch.nn.functional as F
 import numpy as np
+from huggingface_hub import hf_hub_download
 
 from model.ecg_cnn_1lead   import ECGCNN1Lead
 from model.ecg_cnn_500hz   import ECGCNN500Hz
 from model.ecg_cnn_12lead  import ECGCNN12Lead
+
+HF_REPO_ID = "Abdullah1607/ECG-MI-Detection"
+
+
+def ensure_model(filename, local_path):
+    """Download model from Hugging Face Hub if not present locally."""
+    if not os.path.exists(local_path):
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        print(f"Downloading {filename} from Hugging Face Hub...")
+        hf_hub_download(
+            repo_id=HF_REPO_ID,
+            filename=filename,
+            local_dir="model",
+            local_dir_use_symlinks=False,
+        )
+        print(f"Downloaded {filename} successfully")
 
 # ---------------------------------------------------------------------------
 # Thresholds — update after evaluation
@@ -41,6 +59,7 @@ _model_image  = None
 def get_model_1lead():
     global _model_1lead
     if _model_1lead is None:
+        ensure_model("ecg_cnn_1lead.pth", MODEL_PATH_1LEAD)
         m = ECGCNN1Lead().to(DEVICE)
         m.load_state_dict(torch.load(MODEL_PATH_1LEAD, map_location=DEVICE, weights_only=True))
         m.eval()
@@ -51,6 +70,7 @@ def get_model_1lead():
 def get_model_12lead():
     global _model_12lead
     if _model_12lead is None:
+        ensure_model("ecg_cnn_12lead.pth", MODEL_PATH_12LEAD)
         m = ECGCNN12Lead().to(DEVICE)
         m.load_state_dict(torch.load(MODEL_PATH_12LEAD, map_location=DEVICE, weights_only=True))
         m.eval()
@@ -61,6 +81,7 @@ def get_model_12lead():
 def get_model_image():
     global _model_image
     if _model_image is None:
+        ensure_model("ecg_cnn_image.pth", MODEL_PATH_IMAGE)
         m = ECGCNN500Hz().to(DEVICE)
         m.load_state_dict(torch.load(MODEL_PATH_IMAGE, map_location=DEVICE, weights_only=True))
         m.eval()

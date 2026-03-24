@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import cv2
 import numpy as np
 from PIL import Image
@@ -6,6 +8,26 @@ from scipy.signal import resample, butter, filtfilt
 from scipy.ndimage import uniform_filter1d
 
 TARGET_LENGTH = 5000
+
+# Poppler path: use local Windows binary if present, else rely on system PATH (Linux/cloud)
+POPPLER_PATH = None
+if os.name == 'nt':
+    _local_poppler = r"D:\Major project\ECG_MI_Project\poppler\poppler-25.12.0\Library\bin"
+    if os.path.exists(_local_poppler):
+        POPPLER_PATH = _local_poppler
+
+
+def convert_pdf_to_image(pdf_path: str) -> str:
+    """Convert first page of a PDF to a temporary PNG file. Returns the PNG path."""
+    from pdf2image import convert_from_path
+    images = convert_from_path(pdf_path, dpi=200, first_page=1, last_page=1,
+                               poppler_path=POPPLER_PATH)
+    if not images:
+        raise ValueError("Could not convert PDF — file may be empty or corrupt.")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    tmp.close()
+    images[0].save(tmp.name, "PNG")
+    return tmp.name
 
 
 # -------------------------------
@@ -150,7 +172,17 @@ def clean(signal):
 # MAIN PIPELINE
 # -------------------------------
 def extract_lead_ii_from_image(image_path):
-    img = load_image(image_path)
+    # Convert PDF to PNG first
+    _tmp_png = None
+    if image_path.lower().endswith(".pdf"):
+        _tmp_png   = convert_pdf_to_image(image_path)
+        image_path = _tmp_png
+
+    try:
+        img = load_image(image_path)
+    finally:
+        if _tmp_png and os.path.exists(_tmp_png):
+            os.unlink(_tmp_png)
 
     # Rotate if portrait
     if img.width < img.height:

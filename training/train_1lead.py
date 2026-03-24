@@ -8,6 +8,7 @@ Saves best model (lowest val loss) to model/ecg_cnn_1lead.pth
 """
 
 import os
+import json
 import numpy as np
 import torch
 import torch.nn as nn
@@ -72,6 +73,8 @@ def main():
 
     best_val_loss = float("inf")
     no_improve    = 0
+    train_losses  = []
+    val_losses    = []
 
     for epoch in range(1, EPOCHS + 1):
 
@@ -105,6 +108,8 @@ def main():
         val_f1    = f1_score(all_labels, (np.array(all_probs) >= 0.5).astype(int), zero_division=0)
 
         scheduler.step(val_loss)
+        train_losses.append(round(train_loss, 6))
+        val_losses.append(round(val_loss, 6))
 
         print(f"Epoch {epoch:3d}/{EPOCHS} | "
               f"train_loss={train_loss:.4f} | "
@@ -123,6 +128,11 @@ def main():
             if no_improve >= PATIENCE:
                 print(f"Early stopping: no improvement for {PATIENCE} epochs.")
                 break
+
+    history = {"train_loss": train_losses, "val_loss": val_losses}
+    with open("model/history_1lead.json", "w") as f:
+        json.dump(history, f)
+    print("Loss history saved to model/history_1lead.json")
 
     print(f"\nTraining complete. Best val loss: {best_val_loss:.4f}")
     print(f"Model saved: {MODEL_SAVE}")

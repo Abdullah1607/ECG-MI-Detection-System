@@ -1,5 +1,4 @@
 import streamlit as st
-import requests
 import tempfile
 import os
 import json
@@ -15,8 +14,11 @@ from inference.disclaimer import CLINICAL_DISCLAIMER
 from inference.explanation_text import generate_explanation
 from inference.report import generate_report
 from inference.ecg_pdf_report import generate_pdf_report_bytes
-
-BACKEND_URL = "http://127.0.0.1:8000"
+from inference.ecg_loader import load_ecg, preprocess_signal
+from inference.ecg_image_extractor import extract_lead_ii_from_image
+from inference.predict import predict_ecg
+from inference.explain import (compute_saliency, compute_gradcam,
+                                compute_gradcam_12lead, compute_saliency_12lead)
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -271,18 +273,31 @@ if run:
             st.stop()
 
         with st.spinner("Extracting signal and running AI analysis…"):
-            response = requests.post(
-                f"{BACKEND_URL}/analyze_image",
-                files={"file": (uploaded_image.name,
-                                uploaded_image.getvalue(),
-                                uploaded_image.type)},
-            )
+            suffix = os.path.splitext(uploaded_image.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(uploaded_image.getvalue())
+                tmp_path = tmp.name
+            try:
+                signal_raw  = extract_lead_ii_from_image(tmp_path)
+            finally:
+                os.unlink(tmp_path)
+            signal_proc          = preprocess_signal(signal_raw)
+            prob, label, confidence = predict_ecg(signal_proc, model_type="image")
+            saliency_arr         = compute_saliency(signal_proc, "1lead")
+            gradcam_arr, _       = compute_gradcam(signal_proc, "1lead")
 
-        if response.status_code != 200:
-            st.error(f"Backend error ({response.status_code}): {response.text}")
-            st.stop()
-
-        result     = response.json()
+        result = {
+            "prediction":           label,
+            "abnormal_probability": round(float(prob), 4),
+            "confidence":           round(float(confidence), 4),
+            "model_used":           "image",
+            "saliency":             saliency_arr.tolist(),
+            "gradcam":              gradcam_arr.tolist(),
+            "signal_1lead":         signal_proc.tolist(),
+            "extracted_signal":     signal_proc.tolist(),
+            "signal_12lead":        None,
+            "gradcam_12lead":       None,
+        }
         label      = result["prediction"]
         prob       = result["abnormal_probability"]
         confidence = result["confidence"]
@@ -314,20 +329,56 @@ if run:
             st.stop()
 
         tmp_dir    = tempfile.mkdtemp()
-        files_http = []
-        for f in uploaded_files:
-            path = os.path.join(tmp_dir, f.name)
-            with open(path, "wb") as out:
-                out.write(f.getbuffer())
-            files_http.append(("files", (f.name, open(path, "rb"))))
+        file_paths = []
+        try:
+            for f in uploaded_files:
+                path = os.path.join(tmp_dir, f.name)
+                with open(path, "wb") as out:
+                    out.write(f.getbuffer())
+                file_paths.append(path)
 
-        response = requests.post(f"{BACKEND_URL}/analyze", files=files_http)
+            signal, model_type       = load_ecg(file_paths)
+            prob, label, confidence  = predict_ecg(signal, model_type)
+            saliency_arr             = compute_saliency(signal, model_type)
+            gradcam_arr, _           = compute_gradcam(signal, model_type)
 
-        if response.status_code != 200:
-            st.error(f"Backend error ({response.status_code}): {response.text}")
+            _LEAD_NAMES = ['I','II','III','aVR','aVL','aVF','V1','V2','V3','V4','V5','V6']
+            result = {
+                "prediction":           label,
+                "abnormal_probability": round(float(prob), 4),
+                "confidence":           round(float(confidence), 4),
+                "model_used":           model_type,
+                "saliency":             saliency_arr.tolist(),
+                "gradcam":              gradcam_arr.tolist(),
+                "signal_12lead":        None,
+                "gradcam_12lead":       None,
+                "signal_1lead":         None,
+            }
+            if model_type == "12lead":
+                gradcam_12lead              = compute_gradcam_12lead(signal)
+                saliency_12lead             = compute_saliency_12lead(signal)
+                lead_scores                 = gradcam_12lead.mean(axis=1)
+                best_idx                    = int(lead_scores.argmax())
+                result["signal_12lead"]         = signal.tolist()
+                result["gradcam_12lead"]        = gradcam_12lead.tolist()
+                result["saliency_12lead"]       = saliency_12lead.tolist()
+                result["best_lead_name"]        = _LEAD_NAMES[best_idx]
+                result["best_lead_activation"]  = float(lead_scores[best_idx])
+            else:
+                result["signal_1lead"] = signal.tolist()
+
+        except Exception as e:
+            st.error(f"Analysis error: {e}")
             st.stop()
+        finally:
+            for path in file_paths:
+                if os.path.exists(path):
+                    os.remove(path)
+            try:
+                os.rmdir(tmp_dir)
+            except OSError:
+                pass
 
-        result     = response.json()
         label      = result["prediction"]
         prob       = result["abnormal_probability"]
         confidence = result["confidence"]
@@ -337,8 +388,8 @@ if run:
         model_used = result.get("model_used", "1lead")
 
         # Best-lead metadata (12lead only)
-        best_lead_name       = result.get("best_lead_name")        # e.g. "V4"
-        best_lead_activation = result.get("best_lead_activation")  # float or None
+        best_lead_name       = result.get("best_lead_name")
+        best_lead_activation = result.get("best_lead_activation")
 
         # Generate text & report
         user_text, clinical_text, confidence_text = generate_explanation(label, prob, model_used)
@@ -794,10 +845,10 @@ myocardial infarction-related patterns
         use_container_width=False,
     )
 
-    with st.expander("View JSON Report", expanded=False):
+    #with st.expander("View JSON Report", expanded=False):
         # Remove disclaimer from displayed JSON to keep it tidy
-        display_report = {k: v for k, v in report.items() if k != "disclaimer"}
-        st.json(display_report)
+        #display_report = {k: v for k, v in report.items() if k != "disclaimer"}
+        #st.json(display_report)
 
     st.divider()
     st.caption(

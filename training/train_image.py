@@ -11,6 +11,7 @@ Output: model/ecg_cnn_image.pth
 """
 
 import os
+import json
 import numpy as np
 import torch
 import torch.nn as nn
@@ -108,8 +109,10 @@ def main():
         optimizer, mode="max", factor=0.5, patience=5, verbose=True
     )
 
-    best_auc   = 0.0
-    no_improve = 0
+    best_auc     = 0.0
+    no_improve   = 0
+    train_losses = []
+    val_losses   = []
 
     for epoch in range(1, EPOCHS + 1):
         # --- Train ---
@@ -130,6 +133,8 @@ def main():
         # --- Validate ---
         val_loss, val_auc, val_f1 = evaluate(model, val_dl, criterion)
         scheduler.step(val_auc)
+        train_losses.append(round(train_loss, 6))
+        val_losses.append(round(val_loss, 6))
 
         print(
             f"Epoch {epoch:3d}/{EPOCHS} | "
@@ -150,6 +155,11 @@ def main():
             if no_improve >= PATIENCE:
                 print(f"Early stopping at epoch {epoch} (no improvement for {PATIENCE} epochs).")
                 break
+
+    history = {"train_loss": train_losses, "val_loss": val_losses}
+    with open("model/history_image.json", "w") as f:
+        json.dump(history, f)
+    print("Loss history saved to model/history_image.json")
 
     print(f"\nTraining complete. Best val AUC: {best_auc:.4f}")
     print(f"Model saved: {MODEL_PATH}")
