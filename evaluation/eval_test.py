@@ -16,7 +16,7 @@ from sklearn.metrics import (
     classification_report
 )
 
-from model.ecg_cnn_500hz import ECGCNN500Hz
+from model.ecg_cnn_image import ECGCNNImage
 from model.ecg_cnn_12lead import ECGCNN12Lead
 from dataset.ecg_dataset import ECGDataset, ECGDataset12Lead
 from inference.predict import THRESHOLD_1LEAD, THRESHOLD_12LEAD
@@ -94,7 +94,7 @@ def main():
 
     # ---- 1-lead ----
     print("\nLoading 1-lead model...")
-    model_1l = ECGCNN500Hz().to(DEVICE)
+    model_1l = ECGCNNImage().to(DEVICE)
     model_1l.load_state_dict(
         torch.load("model/ecg_cnn_500hz.pth", map_location=DEVICE, weights_only=True)
     )

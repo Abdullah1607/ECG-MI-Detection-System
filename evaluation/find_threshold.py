@@ -18,7 +18,7 @@ from sklearn.metrics import (
     confusion_matrix, precision_recall_curve
 )
 
-from model.ecg_cnn_500hz import ECGCNN500Hz
+from model.ecg_cnn_image import ECGCNNImage
 from dataset.ecg_dataset import ECGDataset
 
 # ---------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def find_sensitivity_threshold(probs, labels, min_sensitivity):
 def main():
     print(f"Device: {DEVICE}")
 
-    model = ECGCNN500Hz().to(DEVICE)
+    model = ECGCNNImage().to(DEVICE)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True))
     model.eval()
 

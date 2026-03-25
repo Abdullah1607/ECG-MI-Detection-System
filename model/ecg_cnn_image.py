@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class ECGCNN500Hz(nn.Module):
+class ECGCNNImage(nn.Module):
     """
     1D-CNN for single-lead ECG classification at 500 Hz.
     Used for the image-extracted signal model (ecg_cnn_image.pth).

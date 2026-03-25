@@ -19,7 +19,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from sklearn.metrics import roc_auc_score, f1_score
 
-from model.ecg_cnn_500hz import ECGCNN500Hz
+from model.ecg_cnn_image import ECGCNNImage
 from dataset.ecg_dataset import ECGDataset
 
 # ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ def main():
                           num_workers=0, pin_memory=False)
 
     # Model — same architecture as production 1-lead 500Hz model
-    model     = ECGCNN500Hz().to(DEVICE)
+    model     = ECGCNNImage().to(DEVICE)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
