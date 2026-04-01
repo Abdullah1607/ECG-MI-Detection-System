@@ -17,7 +17,7 @@ from model.ecg_cnn_1lead   import ECGCNN1Lead
 from model.ecg_cnn_image   import ECGCNNImage
 from model.ecg_cnn_12lead  import ECGCNN12Lead
 
-HF_REPO_ID = "Abdullah9786/ECG-MI-Detection"
+HF_REPO_ID = "Abdullah9786/ECG-Abnormality-Detection-System"
 
 
 def ensure_model(filename, local_path):
